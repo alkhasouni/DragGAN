@@ -4,44 +4,60 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Arabic Carousel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app">
 
-    <!-- Header -->
+    <!-- ── Header ─────────────────────────────── -->
     <header class="app-header">
       <div class="header-left">
-        <span class="header-icon">🎠</span>
+        <div class="logo-mark">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity=".9"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity=".6"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5" fill="currentColor" opacity=".6"/>
+            <rect x="14" y="14" width="7" height="7" rx="1.5" fill="currentColor" opacity=".3"/>
+          </svg>
+        </div>
         <h1>Arabic Carousel</h1>
       </div>
       <div class="header-right">
-        <span id="limitWarning" class="limit-badge" hidden>Max 7 slides reached</span>
-        <span class="slide-badge">
-          Slides&nbsp;<strong id="slideCount">4</strong>&nbsp;/&nbsp;7
-        </span>
+        <span id="limitWarning" class="limit-badge" hidden>Max 7 slides</span>
+        <div class="counter-pill">
+          <span id="slideCount">4</span><span class="counter-sep">/7</span>
+        </div>
       </div>
     </header>
 
-    <!-- Carousel -->
+    <!-- ── Progress segments ──────────────────── -->
+    <div class="progress-rail" id="progressRail"></div>
+
+    <!-- ── Carousel ───────────────────────────── -->
     <section class="carousel-section">
       <div class="carousel-viewport" id="carouselViewport">
         <div class="carousel-track" id="carouselTrack"></div>
+
         <button class="nav-btn nav-prev" id="prevBtn" aria-label="Previous slide">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="15,18 9,12 15,6"></polyline>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <polyline points="15,18 9,12 15,6"/>
           </svg>
         </button>
         <button class="nav-btn nav-next" id="nextBtn" aria-label="Next slide">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="9,18 15,12 9,6"></polyline>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <polyline points="9,18 15,12 9,6"/>
           </svg>
         </button>
       </div>
-      <div class="dots-row" id="dotsRow" role="tablist" aria-label="Slide navigation"></div>
     </section>
 
-    <!-- Chat -->
+    <!-- ── Thumbnail strip ────────────────────── -->
+    <div class="thumb-strip" id="thumbStrip" role="tablist" aria-label="Slide thumbnails"></div>
+
+    <!-- ── Chat ───────────────────────────────── -->
     <section class="chat-section">
       <div class="chat-feed" id="chatFeed"></div>
 
@@ -55,27 +71,27 @@
             rows="1"
             aria-label="Message input"
           ></textarea>
-          <label class="icon-btn" title="Add image or video">
+          <label class="icon-btn" title="Attach image or video">
             <input type="file" id="mediaFile" accept="image/*,video/*" multiple hidden>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-              <circle cx="8.5" cy="8.5" r="1.5"></circle>
-              <polyline points="21,15 16,10 5,21"></polyline>
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17,8 12,3 7,8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
           </label>
           <button id="sendBtn" class="send-btn" aria-label="Send">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22,2 15,22 11,13 2,9"></polygon>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22,2 15,22 11,13 2,9"/>
             </svg>
           </button>
         </div>
-        <p class="composer-hints">
+        <div class="composer-hints">
           <span>⏎ Send</span>
           <span>⇧⏎ New line</span>
-          <span>📋 Paste to auto-translate</span>
-          <span>🖼️ Attach image / video</span>
-        </p>
+          <span>📋 Paste auto-translates</span>
+          <span>◀ ▶ Navigate</span>
+        </div>
       </div>
     </section>
 

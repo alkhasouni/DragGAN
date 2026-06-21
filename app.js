@@ -1,138 +1,191 @@
 'use strict';
 
 /* ── Constants ───────────────────────────────────────────────────── */
-const MIN_SLIDES = 4;
-const MAX_SLIDES = 7;
-const TRANSLATE_URL = 'https://api.mymemory.translated.net/get';
+const MIN_SLIDES     = 4;
+const MAX_SLIDES     = 7;
+const TRANSLATE_URL  = 'https://api.mymemory.translated.net/get';
 
-// Gradient backgrounds cycling through text slides
-const GRADIENTS = [
-  'linear-gradient(135deg, #1a1a4e 0%, #4a2080 100%)',
-  'linear-gradient(135deg, #0f3460 0%, #e94560 100%)',
-  'linear-gradient(135deg, #0d2137 0%, #1a6b5a 100%)',
-  'linear-gradient(135deg, #1f0a3c 0%, #5b1060 100%)',
-  'linear-gradient(135deg, #0a2744 0%, #0a6e8a 100%)',
-  'linear-gradient(135deg, #2d1b00 0%, #b35900 100%)',
-  'linear-gradient(135deg, #001a10 0%, #006644 100%)',
-];
+// Arabic watermark characters cycling per slide index
+const WATERMARKS = ['ع', 'ب', 'ر', 'ي', 'ة', 'ل', 'م'];
 
-/* ── Slide state ─────────────────────────────────────────────────── */
+/* ── Initial slides ──────────────────────────────────────────────── */
 const slides = [
-  // Slide 1 — Hyundai robot video
   {
     type:    'video',
     src:     'media/hyundai-robot.mp4',
     name:    'hyundai-robot.mp4',
     caption: 'Hyundai Robot — Automated Parking',
+    sub:     'روبوت يحرك المركبة بدقة',
   },
-  // Slide 2 — Arabic translation of the caption text
   {
     type:     'text',
     arabic:   'روبوت هيونداي يحرك المركبة بدقة لتحسين السلامة في مواقف السيارات الآلية 😜',
     original: 'Hyundai Robot move vehicle with precision to improve safety in automated parking 😜',
   },
-  // Slide 3-4 — onboarding hints
   {
     type:     'text',
     arabic:   'الصق أي نص في المحادثة وسيُترجم تلقائياً إلى العربية',
-    original: 'Paste any text in the chat and it will be translated to Arabic',
+    original: 'Paste any text in the chat and it will be translated to Arabic automatically',
   },
   {
     type:     'text',
-    arabic:   'يمكنك إضافة الصور ومقاطع الفيديو إلى الشرائح',
-    original: 'You can add images and videos to the slides',
+    arabic:   'يمكنك إضافة الصور ومقاطع الفيديو إلى الشرائح بسهولة',
+    original: 'You can easily add images and videos to the carousel slides',
   },
 ];
 
 let currentIndex = 0;
-let pendingMedia  = []; // { type, src, name }
+let pendingMedia  = [];
 let translating   = false;
 
 /* ── DOM refs ────────────────────────────────────────────────────── */
-const track       = document.getElementById('carouselTrack');
-const dotsRow     = document.getElementById('dotsRow');
-const prevBtn     = document.getElementById('prevBtn');
-const nextBtn     = document.getElementById('nextBtn');
-const chatFeed    = document.getElementById('chatFeed');
-const chatInput   = document.getElementById('chatInput');
-const sendBtn     = document.getElementById('sendBtn');
-const mediaFile   = document.getElementById('mediaFile');
-const mediaPrev   = document.getElementById('mediaPreviews');
-const slideCount  = document.getElementById('slideCount');
-const limitBadge  = document.getElementById('limitWarning');
+const track        = document.getElementById('carouselTrack');
+const progressRail = document.getElementById('progressRail');
+const thumbStrip   = document.getElementById('thumbStrip');
+const prevBtn      = document.getElementById('prevBtn');
+const nextBtn      = document.getElementById('nextBtn');
+const chatFeed     = document.getElementById('chatFeed');
+const chatInput    = document.getElementById('chatInput');
+const sendBtn      = document.getElementById('sendBtn');
+const mediaFile    = document.getElementById('mediaFile');
+const mediaPrev    = document.getElementById('mediaPreviews');
+const slideCount   = document.getElementById('slideCount');
+const limitBadge   = document.getElementById('limitWarning');
 
-/* ── Carousel render ─────────────────────────────────────────────── */
-function renderCarousel() {
-  track.innerHTML   = '';
-  dotsRow.innerHTML = '';
+/* ── Build one slide element ─────────────────────────────────────── */
+function buildSlide(slide, i, total) {
+  const el = document.createElement('div');
+  el.className = 'slide';
 
-  slides.forEach((slide, i) => {
-    const el = document.createElement('div');
-    el.className = 'slide';
+  if (slide.type === 'text') {
+    el.classList.add('text-slide', `theme-${i % 7}`);
+    el.innerHTML = `
+      <div class="slide-mesh"></div>
+      <div class="slide-watermark">${WATERMARKS[i % WATERMARKS.length]}</div>
+      <span class="slide-counter">${i + 1} / ${total}</span>
+      <span class="slide-type">عربي</span>
+      <p class="slide-arabic">${esc(slide.arabic)}</p>
+      <div class="slide-divider"></div>
+      ${slide.original ? `<p class="slide-original">${esc(slide.original)}</p>` : ''}`;
 
-    if (slide.type === 'text') {
-      el.classList.add('text-slide');
-      el.style.background = GRADIENTS[i % GRADIENTS.length];
-      el.innerHTML = `
-        <div class="slide-deco"></div>
-        <span class="slide-pill">${i + 1} / ${slides.length}</span>
-        <div class="slide-content-wrap">
-          <p class="slide-arabic">${esc(slide.arabic)}</p>
-          ${slide.original ? `<p class="slide-original">${esc(slide.original)}</p>` : ''}
-        </div>`;
-    } else {
-      el.classList.add('media-slide');
-      const tag  = slide.type === 'video' ? 'video' : 'img';
-      const ctrl = slide.type === 'video' ? ' controls' : '';
-      const cap  = slide.caption ? `<div class="slide-caption">${esc(slide.caption)}</div>` : '';
-      el.innerHTML = `
-        <span class="slide-pill">${i + 1} / ${slides.length}</span>
-        <${tag} src="${slide.src}" alt="Slide ${i + 1}"${ctrl}></${tag}>
-        ${cap}`;
-    }
+  } else {
+    // video or image
+    el.classList.add('media-slide');
+    const isVideo = slide.type === 'video';
+    const tag     = isVideo ? 'video' : 'img';
+    const extra   = isVideo ? ' controls playsinline' : '';
+    const cap     = slide.caption
+      ? `<div class="slide-caption-bar">
+           <div class="cap-title">${esc(slide.caption)}</div>
+           ${slide.sub ? `<div class="cap-sub">${esc(slide.sub)}</div>` : ''}
+         </div>` : '';
+    const overlay = isVideo
+      ? `<div class="slide-video-overlay">
+           <div class="play-circle">
+             <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg>
+           </div>
+         </div>` : '';
 
-    track.appendChild(el);
+    el.innerHTML = `
+      <span class="slide-counter">${i + 1} / ${total}</span>
+      <span class="slide-type">${isVideo ? '▶ VIDEO' : '🖼 IMAGE'}</span>
+      <${tag} src="${slide.src}" alt="Slide ${i + 1}"${extra}></${tag}>
+      ${overlay}
+      ${cap}`;
+  }
 
-    // Dot
-    const dot = document.createElement('button');
-    dot.className  = 'dot' + (i === currentIndex ? ' active' : '');
-    dot.role       = 'tab';
-    dot.ariaLabel  = `Slide ${i + 1}`;
-    dot.addEventListener('click', () => goTo(i));
-    dotsRow.appendChild(dot);
+  return el;
+}
+
+/* ── Build one thumbnail ─────────────────────────────────────────── */
+function buildThumb(slide, i) {
+  const btn = document.createElement('button');
+  btn.className = 'thumb' + (i === currentIndex ? ' active' : '');
+  btn.role      = 'tab';
+  btn.ariaLabel = `Go to slide ${i + 1}`;
+
+  if (slide.type === 'text') {
+    btn.innerHTML = `
+      <div class="thumb-text-inner" style="background:var(--surface2)">
+        <span style="font-family:'Cairo',sans-serif">${WATERMARKS[i % WATERMARKS.length]}</span>
+      </div>`;
+    // tint thumbnail to match slide theme
+    btn.querySelector('.thumb-text-inner').style.background =
+      `var(--surface2)`;
+
+  } else if (slide.type === 'video') {
+    btn.innerHTML = `
+      <video src="${slide.src}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover"></video>
+      <div class="thumb-icon-overlay">▶</div>`;
+
+  } else {
+    btn.innerHTML = `
+      <img src="${slide.src}" alt="Slide ${i + 1}" style="width:100%;height:100%;object-fit:cover">`;
+  }
+
+  btn.addEventListener('click', () => goTo(i));
+  return btn;
+}
+
+/* ── Render carousel + UI chrome ─────────────────────────────────── */
+function render() {
+  const total = slides.length;
+
+  // ── Track slides ──────────────────────────────────────────────
+  track.innerHTML = '';
+  slides.forEach((s, i) => track.appendChild(buildSlide(s, i, total)));
+  track.style.transform = `translateX(-${currentIndex * 100}%)`;
+
+  // ── Progress rail ──────────────────────────────────────────────
+  progressRail.innerHTML = '';
+  slides.forEach((_, i) => {
+    const seg = document.createElement('div');
+    seg.className = 'prog-seg' +
+      (i < currentIndex ? ' past' : i === currentIndex ? ' active' : '');
+    progressRail.appendChild(seg);
   });
 
-  track.style.transform = `translateX(-${currentIndex * 100}%)`;
+  // ── Thumbnail strip ────────────────────────────────────────────
+  thumbStrip.innerHTML = '';
+  slides.forEach((s, i) => thumbStrip.appendChild(buildThumb(s, i)));
+
+  // scroll active thumb into view
+  const activeThumb = thumbStrip.children[currentIndex];
+  if (activeThumb) activeThumb.scrollIntoView({ inline: 'nearest', behavior: 'smooth' });
+
+  // ── Nav state ──────────────────────────────────────────────────
   prevBtn.disabled = currentIndex === 0;
-  nextBtn.disabled = currentIndex === slides.length - 1;
-  slideCount.textContent = slides.length;
-  limitBadge.hidden = slides.length < MAX_SLIDES;
+  nextBtn.disabled = currentIndex === total - 1;
+
+  // ── Header meta ───────────────────────────────────────────────
+  slideCount.textContent = total;
+  limitBadge.hidden      = total < MAX_SLIDES;
+
   refreshSendBtn();
 }
 
 function goTo(i) {
   currentIndex = Math.max(0, Math.min(i, slides.length - 1));
-  renderCarousel();
+  render();
 }
 
 /* ── Slide management ────────────────────────────────────────────── */
-function canAddSlide() { return slides.length < MAX_SLIDES; }
+function canAdd() { return slides.length < MAX_SLIDES; }
 
 function pushSlide(slide) {
-  if (!canAddSlide()) return false;
+  if (!canAdd()) return false;
   slides.push(slide);
   currentIndex = slides.length - 1;
-  renderCarousel();
+  render();
   return true;
 }
 
 /* ── Translation ─────────────────────────────────────────────────── */
 async function translate(text) {
-  const url = `${TRANSLATE_URL}?q=${encodeURIComponent(text)}&langpair=auto|ar`;
-  const res  = await fetch(url);
+  const res  = await fetch(`${TRANSLATE_URL}?q=${encodeURIComponent(text)}&langpair=auto|ar`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
-  if (data.responseStatus !== 200) throw new Error(data.responseMessage || 'Translation failed');
+  if (data.responseStatus !== 200) throw new Error(data.responseMessage || 'Translation error');
   return data.responseData.translatedText;
 }
 
@@ -152,13 +205,8 @@ function appendMsg(cls, html) {
   return el;
 }
 
-function appendInfo(text) {
-  appendMsg('info', text);
-}
-
-function appendWarning(text) {
-  appendMsg('warning', `⚠️ ${text}`);
-}
+function appendInfo(text)    { appendMsg('info', text); }
+function appendWarning(text) { appendMsg('warning', `⚠️ ${text}`); }
 
 function showTranslating() {
   const el = document.createElement('div');
@@ -169,22 +217,21 @@ function showTranslating() {
   return el;
 }
 
-/* ── Send handler ────────────────────────────────────────────────── */
+/* ── Send / translate ────────────────────────────────────────────── */
 async function handleSend() {
-  const text       = chatInput.value.trim();
-  const hasText    = text.length > 0;
-  const hasMedia   = pendingMedia.length > 0;
+  const text     = chatInput.value.trim();
+  const hasText  = text.length > 0;
+  const hasMedia = pendingMedia.length > 0;
   if (!hasText && !hasMedia) return;
   if (translating) return;
 
-  // ── Text → translate → slide ──────────────────────────────────
+  // Text → translate → new slide
   if (hasText) {
     chatInput.value = '';
     autoResize();
-    refreshSendBtn();
 
-    if (!canAddSlide()) {
-      appendWarning(`Maximum ${MAX_SLIDES} slides reached. Cannot add more text slides.`);
+    if (!canAdd()) {
+      appendWarning(`Maximum ${MAX_SLIDES} slides reached.`);
     } else {
       appendMsg('user', `<div class="msg-label">You</div>${esc(text)}`);
 
@@ -201,43 +248,43 @@ async function handleSend() {
           <div class="msg-label">Arabic translation</div>
           <div class="msg-arabic">${esc(arabic)}</div>`);
 
-        const added = pushSlide({ type: 'text', arabic, original: text });
-        if (added) appendInfo(`✅ Slide ${slides.length} added`);
+        if (pushSlide({ type: 'text', arabic, original: text })) {
+          appendInfo(`✅ Slide ${slides.length} added`);
+        }
       } catch (err) {
         indicator.remove();
         translating = false;
-        appendWarning(`Translation failed: ${err.message}. Please try again.`);
+        appendWarning(`Translation failed — ${err.message}. Try again.`);
       }
-
-      refreshSendBtn();
     }
+
+    refreshSendBtn();
   }
 
-  // ── Media → slide ─────────────────────────────────────────────
+  // Media → new slide(s)
   if (hasMedia) {
     const toAdd = [...pendingMedia];
     pendingMedia = [];
     mediaPrev.innerHTML = '';
 
     for (const m of toAdd) {
-      if (!canAddSlide()) {
-        appendWarning(`Maximum ${MAX_SLIDES} slides reached. ${toAdd.length - toAdd.indexOf(m)} file(s) not added.`);
+      if (!canAdd()) {
+        appendWarning(`Maximum ${MAX_SLIDES} slides reached.`);
         break;
       }
-
       const tag     = m.type === 'video' ? 'video' : 'img';
       const preview = `<div class="msg-media-preview"><${tag} src="${m.src}"></${tag}></div>`;
-      appendMsg('system', `<div class="msg-label">📎 Media added to carousel</div>${preview}`);
+      appendMsg('system', `<div class="msg-label">📎 Media added</div>${preview}`);
 
       pushSlide({ type: m.type, src: m.src, name: m.name });
       appendInfo(`✅ Slide ${slides.length} added`);
     }
-  }
 
-  refreshSendBtn();
+    refreshSendBtn();
+  }
 }
 
-/* ── Media file picker ───────────────────────────────────────────── */
+/* ── File picker ─────────────────────────────────────────────────── */
 function handleFileSelect(e) {
   const files     = Array.from(e.target.files);
   const remaining = MAX_SLIDES - slides.length - pendingMedia.length;
@@ -250,26 +297,25 @@ function handleFileSelect(e) {
 
   const accepted = files.slice(0, remaining);
   if (files.length > accepted.length) {
-    appendWarning(`Only ${accepted.length} file(s) queued; carousel limit is ${MAX_SLIDES} slides.`);
+    appendWarning(`Only ${accepted.length} file(s) accepted — carousel limit is ${MAX_SLIDES}.`);
   }
 
   accepted.forEach(file => {
-    const reader  = new FileReader();
-    const mType   = file.type.startsWith('video') ? 'video' : 'image';
+    const reader = new FileReader();
+    const mType  = file.type.startsWith('video') ? 'video' : 'image';
     reader.onload = ev => {
       const src = ev.target.result;
-      const idx = pendingMedia.length;
       pendingMedia.push({ type: mType, src, name: file.name });
 
       const thumb = document.createElement('div');
       thumb.className = 'preview-thumb';
-
       const tag = mType === 'video' ? 'video' : 'img';
       thumb.innerHTML = `<${tag} src="${src}"></${tag}>
         <button class="preview-remove" aria-label="Remove">✕</button>`;
 
       thumb.querySelector('.preview-remove').addEventListener('click', () => {
-        pendingMedia.splice(pendingMedia.indexOf(pendingMedia[idx]), 1);
+        const idx = pendingMedia.findIndex(m => m.src === src);
+        if (idx !== -1) pendingMedia.splice(idx, 1);
         thumb.remove();
         refreshSendBtn();
       });
@@ -283,19 +329,18 @@ function handleFileSelect(e) {
   e.target.value = '';
 }
 
-/* ── Auto-resize textarea ────────────────────────────────────────── */
+/* ── Helpers ─────────────────────────────────────────────────────── */
 function autoResize() {
   chatInput.style.height = 'auto';
-  chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 110) + 'px';
 }
 
-/* ── Send button state ───────────────────────────────────────────── */
 function refreshSendBtn() {
   const hasContent = chatInput.value.trim().length > 0 || pendingMedia.length > 0;
   sendBtn.disabled = !hasContent || translating;
 }
 
-/* ── Event wiring ────────────────────────────────────────────────── */
+/* ── Events ──────────────────────────────────────────────────────── */
 prevBtn.addEventListener('click', () => goTo(currentIndex - 1));
 nextBtn.addEventListener('click', () => goTo(currentIndex + 1));
 
@@ -308,34 +353,31 @@ chatInput.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
 });
 
-// Auto-translate when user pastes into the textarea
+// Auto-translate on paste
 chatInput.addEventListener('paste', () => {
   setTimeout(() => {
-    autoResize();
-    refreshSendBtn();
-    if (chatInput.value.trim().length > 0) handleSend();
+    autoResize(); refreshSendBtn();
+    if (chatInput.value.trim()) handleSend();
   }, 60);
 });
 
-// Keyboard arrow navigation when textarea is not focused
+// Keyboard arrow nav (when textarea is not focused)
 document.addEventListener('keydown', e => {
   if (document.activeElement === chatInput) return;
   if (e.key === 'ArrowLeft')  goTo(currentIndex - 1);
   if (e.key === 'ArrowRight') goTo(currentIndex + 1);
 });
 
-// Touch / swipe on carousel
-let touchX0 = 0;
-document.getElementById('carouselViewport').addEventListener('touchstart', e => {
-  touchX0 = e.changedTouches[0].clientX;
-}, { passive: true });
-
+// Touch swipe
+let swipeX = 0;
+document.getElementById('carouselViewport').addEventListener('touchstart',
+  e => { swipeX = e.changedTouches[0].clientX; }, { passive: true });
 document.getElementById('carouselViewport').addEventListener('touchend', e => {
-  const dx = touchX0 - e.changedTouches[0].clientX;
-  if (Math.abs(dx) > 45) goTo(currentIndex + (dx > 0 ? 1 : -1));
+  const dx = swipeX - e.changedTouches[0].clientX;
+  if (Math.abs(dx) > 44) goTo(currentIndex + (dx > 0 ? 1 : -1));
 }, { passive: true });
 
 /* ── Boot ────────────────────────────────────────────────────────── */
-renderCarousel();
-appendInfo('🚗 Hyundai robot video loaded — slide 1 of 4.');
-appendInfo('📋 Paste more text to translate to Arabic, or attach images / videos.');
+render();
+appendInfo('🚗 Hyundai robot video loaded on slide 1.');
+appendInfo('📋 Paste text to translate to Arabic, or attach an image / video.');
