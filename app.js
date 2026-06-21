@@ -18,10 +18,30 @@ const GRADIENTS = [
 
 /* ── Slide state ─────────────────────────────────────────────────── */
 const slides = [
-  { type: 'text', arabic: 'مرحباً بك في العرض التقديمي التفاعلي', original: 'Welcome to the interactive carousel' },
-  { type: 'text', arabic: 'الصق أي نص في المحادثة وسيُترجم تلقائياً إلى العربية', original: 'Paste any text in the chat and it will be translated to Arabic' },
-  { type: 'text', arabic: 'يمكنك إضافة الصور ومقاطع الفيديو إلى الشرائح', original: 'You can add images and videos to the slides' },
-  { type: 'text', arabic: 'الحد الأدنى أربع شرائح والحد الأقصى سبع شرائح', original: 'Minimum 4 slides · Maximum 7 slides' },
+  // Slide 1 — Hyundai robot video
+  {
+    type:    'video',
+    src:     'media/hyundai-robot.mp4',
+    name:    'hyundai-robot.mp4',
+    caption: 'Hyundai Robot — Automated Parking',
+  },
+  // Slide 2 — Arabic translation of the caption text
+  {
+    type:     'text',
+    arabic:   'روبوت هيونداي يحرك المركبة بدقة لتحسين السلامة في مواقف السيارات الآلية 😜',
+    original: 'Hyundai Robot move vehicle with precision to improve safety in automated parking 😜',
+  },
+  // Slide 3-4 — onboarding hints
+  {
+    type:     'text',
+    arabic:   'الصق أي نص في المحادثة وسيُترجم تلقائياً إلى العربية',
+    original: 'Paste any text in the chat and it will be translated to Arabic',
+  },
+  {
+    type:     'text',
+    arabic:   'يمكنك إضافة الصور ومقاطع الفيديو إلى الشرائح',
+    original: 'You can add images and videos to the slides',
+  },
 ];
 
 let currentIndex = 0;
@@ -64,9 +84,11 @@ function renderCarousel() {
       el.classList.add('media-slide');
       const tag  = slide.type === 'video' ? 'video' : 'img';
       const ctrl = slide.type === 'video' ? ' controls' : '';
+      const cap  = slide.caption ? `<div class="slide-caption">${esc(slide.caption)}</div>` : '';
       el.innerHTML = `
         <span class="slide-pill">${i + 1} / ${slides.length}</span>
-        <${tag} src="${slide.src}" alt="Slide ${i + 1}"${ctrl}></${tag}>`;
+        <${tag} src="${slide.src}" alt="Slide ${i + 1}"${ctrl}></${tag}>
+        ${cap}`;
     }
 
     track.appendChild(el);
@@ -315,4 +337,5 @@ document.getElementById('carouselViewport').addEventListener('touchend', e => {
 
 /* ── Boot ────────────────────────────────────────────────────────── */
 renderCarousel();
-appendInfo('👋 Welcome! Paste text to translate it to Arabic, or attach an image / video.');
+appendInfo('🚗 Hyundai robot video loaded — slide 1 of 4.');
+appendInfo('📋 Paste more text to translate to Arabic, or attach images / videos.');
